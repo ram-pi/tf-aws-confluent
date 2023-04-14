@@ -1,6 +1,12 @@
 # Introduction
 
-Demo setup for Confluent Private Dedicated cluster with AWS Transit Gateway
+Generator for:
+- AWS VPC and Subnets
+- AWS MSK
+- Confluent Cloud Network with PrivateLink
+- AWS VPC Endpoint
+- Confluent Cloud Private Dedicated Cluster
+- Confluent Cloud Schema Registry
 
 ## Prerequisites
 
