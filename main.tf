@@ -1,6 +1,8 @@
 # locals
 locals {
-  privatelink = 0
+  msk_kafka_version = "2.4.1.1"
+  privatelink       = 0
+  tgw               = 1
 }
 
 # Create simple VPC
@@ -185,7 +187,8 @@ resource "aws_security_group" "private_instance_ssh" {
     from_port   = 0
     to_port     = 0
     protocol    = -1
-    cidr_blocks = ["10.1.${100 + count.index}.0/24"]
+    #cidr_blocks = ["10.1.${100 + count.index}.0/24"]
+    cidr_blocks = ["10.0.0.0/8"]
   }
   ingress {
     description = "PING"
@@ -260,11 +263,15 @@ resource "aws_security_group" "bastion" {
     cidr_blocks = ["${local.ec2_instance_connect_ip[0]}", "${chomp(data.http.myip.response_body)}/32", "${aws_vpc.main.cidr_block}"]
   }
   ingress {
-    description = "PING"
-    from_port   = -1
-    to_port     = -1
-    protocol    = "icmp"
-    cidr_blocks = ["${aws_vpc.main.cidr_block}"]
+    description = "All from 10.0.0.0/8"
+    from_port   = 0
+    to_port     = 0
+    protocol    = -1
+    cidr_blocks = ["10.0.0.0/8"]
+    # from_port   = -1
+    # to_port     = -1
+    # protocol    = "icmp"
+    #cidr_blocks = ["${aws_vpc.main.cidr_block}"]
   }
   tags = {
     Name = "${var.owner}-bastion-instance-sg"
@@ -273,7 +280,7 @@ resource "aws_security_group" "bastion" {
 
 # MSK
 resource "aws_msk_configuration" "conf" {
-  kafka_versions = ["3.3.2"]
+  kafka_versions = [local.msk_kafka_version]
   name           = "${var.owner}-conf"
 
   server_properties = <<PROPERTIES
@@ -293,7 +300,7 @@ resource "aws_kms_key" "kms" {
 # AWS Managed Kafka Service
 resource "aws_msk_cluster" "cluster_1" {
   cluster_name           = "${var.owner}-cluster"
-  kafka_version          = "3.3.2"
+  kafka_version          = local.msk_kafka_version
   number_of_broker_nodes = 3
 
   broker_node_group_info {
@@ -318,6 +325,8 @@ resource "aws_msk_cluster" "cluster_1" {
   client_authentication {
     unauthenticated = true
   }
+
+  enhanced_monitoring = "PER_TOPIC_PER_BROKER"
 
   open_monitoring {
     prometheus {
@@ -384,4 +393,31 @@ module "privatelink" {
   subnet_ids                 = aws_subnet.public.*.id
   security_group_ids         = [aws_security_group.bastion.id]
   vpc_id                     = aws_vpc.main.id
+}
+
+module "tgw" {
+  count  = local.tgw
+  source = "./modules/dedicated-with-transitgateway"
+  providers = {
+    aws = aws
+  }
+
+  api_key         = var.confluent_cloud_api_key
+  secret          = var.confluent_cloud_api_secret
+  env             = var.confluent_env
+  service_account = var.confluent_sa
+  aws_region      = var.aws_region
+  subnets_ids     = aws_subnet.public.*.id
+  route_table_id  = aws_route_table.public.id
+  vpc_id          = aws_vpc.main.id
+  owner           = var.owner
+  owner_email     = var.owner_email
+}
+
+/* Cluster Linking */
+data "confluent_kafka_cluster" "destination" {
+  id = "lkc-prdg7m"
+  environment {
+    id = "env-0xjwzq"
+  }
 }

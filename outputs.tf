@@ -76,3 +76,16 @@ output "bootstrap_prefix" {
 output "endpoint_prefix" {
   value = module.privatelink.*.endpoint_prefix
 }
+
+output "tgw_bootstrap_server" {
+  value = module.tgw.*.bootstrap
+}
+
+output "tgw_api_key" {
+  value = module.tgw.*.kafka_api_key
+}
+
+output "tgw_api_secret" {
+  value     = module.tgw.*.kafka_api_key_secret
+  sensitive = true
+}
