@@ -1,8 +1,10 @@
 # locals
 locals {
-  msk_kafka_version = "2.4.1.1"
+  msk_kafka_version = "3.4.0"
   privatelink       = 0
   tgw               = 1
+  msk               = 0
+  oracle_rds        = 0
 }
 
 # Create simple VPC
@@ -134,7 +136,8 @@ data "aws_ami" "ubuntu" {
 }
 
 data "aws_ec2_instance_type" "micro" {
-  instance_type = "t2.small"
+  //instance_type = "t2.small"
+  instance_type = "t3.large"
 }
 
 # Create private instances and related SGs
@@ -203,7 +206,7 @@ resource "aws_security_group" "private_instance_ssh" {
 }
 
 resource "aws_instance" "private" {
-  count                  = length(aws_subnet.private)
+  count                  = 0
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = data.aws_ec2_instance_type.micro.instance_type
   key_name               = aws_key_pair.generate_key.key_name
@@ -217,8 +220,9 @@ resource "aws_instance" "private" {
 
 # Create bastion instances and related sgs
 resource "aws_instance" "bastion" {
-  count                       = 1
-  ami                         = data.aws_ami.ubuntu.id
+  count = 1
+  #ami                         = data.aws_ami.ubuntu.id
+  ami                         = "ami-05147510eb2885c80"
   associate_public_ip_address = true
   instance_type               = data.aws_ec2_instance_type.micro.instance_type
   key_name                    = aws_key_pair.generate_key.key_name
@@ -286,6 +290,9 @@ resource "aws_msk_configuration" "conf" {
   server_properties = <<PROPERTIES
 auto.create.topics.enable = true
 delete.topic.enable = true
+replica.socket.receive.buffer.bytes=2097152
+socket.receive.buffer.bytes=2097152
+socket.send.buffer.bytes=2097152
 PROPERTIES
 }
 
@@ -299,6 +306,7 @@ resource "aws_kms_key" "kms" {
 
 # AWS Managed Kafka Service
 resource "aws_msk_cluster" "cluster_1" {
+  count                  = local.msk
   cluster_name           = "${var.owner}-cluster"
   kafka_version          = local.msk_kafka_version
   number_of_broker_nodes = 3
@@ -311,7 +319,7 @@ resource "aws_msk_cluster" "cluster_1" {
       }
     }
     client_subnets  = aws_subnet.public.*.id
-    security_groups = aws_security_group.private_instance_ssh[*].id
+    security_groups = aws_security_group.bastion[*].id
 
     # public_access {
     #   type = "SERVICE_PROVIDED_EIPS"
@@ -319,7 +327,10 @@ resource "aws_msk_cluster" "cluster_1" {
   }
 
   encryption_info {
-    encryption_at_rest_kms_key_arn = aws_kms_key.kms.arn
+    # encryption_at_rest_kms_key_arn = aws_kms_key.kms.arn
+    encryption_in_transit {
+      client_broker = "PLAINTEXT"
+    }
   }
 
   client_authentication {
@@ -377,6 +388,11 @@ resource "aws_glue_schema" "schema_1" {
   schema_definition = "{\"type\": \"record\", \"name\": \"r1\", \"fields\": [ {\"name\": \"f1\", \"type\": \"int\"}, {\"name\": \"f2\", \"type\": \"string\"} ]}"
 }
 
+/* AWS RDS */
+/*
+* TODO  
+*/
+
 /* Confluent Cloud Private Link */
 module "privatelink" {
   count  = local.privatelink
@@ -412,12 +428,4 @@ module "tgw" {
   vpc_id          = aws_vpc.main.id
   owner           = var.owner
   owner_email     = var.owner_email
-}
-
-/* Cluster Linking */
-data "confluent_kafka_cluster" "destination" {
-  id = "lkc-prdg7m"
-  environment {
-    id = "env-0xjwzq"
-  }
 }

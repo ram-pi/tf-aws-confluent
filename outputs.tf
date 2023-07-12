@@ -15,16 +15,16 @@ output "subnet_ids" {
 }
 
 output "zookeeper_connect_string" {
-  value = aws_msk_cluster.cluster_1.zookeeper_connect_string
+  value = aws_msk_cluster.cluster_1.*.zookeeper_connect_string
 }
 
 output "bootstrap_brokers_tls" {
   description = "TLS connection host:port pairs"
-  value       = aws_msk_cluster.cluster_1.bootstrap_brokers_tls
+  value       = aws_msk_cluster.cluster_1.*.bootstrap_brokers_tls
 }
 
-output "bootstrap_brokers_public_sasl_iam" {
-  value = aws_msk_cluster.cluster_1.bootstrap_brokers_public_sasl_iam
+output "bootstrap_brokers" {
+  value = aws_msk_cluster.cluster_1.*.bootstrap_brokers
 }
 
 output "aws_glue_registry_arn" {

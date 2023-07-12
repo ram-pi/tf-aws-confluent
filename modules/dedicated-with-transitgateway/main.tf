@@ -56,8 +56,9 @@ resource "confluent_transit_gateway_attachment" "main" {
 resource "confluent_kafka_cluster" "dedicated" {
   display_name = "${var.owner}-dedicated-tgw"
   availability = "SINGLE_ZONE"
-  cloud        = "AWS"
-  region       = var.aws_region
+  #availability = "MULTI_ZONE"
+  cloud  = "AWS"
+  region = var.aws_region
   dedicated {
     cku = 1
   }
