@@ -17,11 +17,14 @@ Generator for:
 ## terraform.tfvars
 
 ```
-service_account = "sa-***"
-env             = "env-***"
-aws_region      = "eu-central-1"
-api_key         = "***"
-secret          = "***"
+aws_region  = "eu-west-1"
+owner_email = "user@example.com"
+owner       = "user"
+/* Confluent Cloud */
+confluent_cloud_api_key    = "xxx"
+confluent_cloud_api_secret = "xxx"
+confluent_env              = "env-xxx"
+confluent_sa               = "sa-xxx"
 ```
 
 ## Running
